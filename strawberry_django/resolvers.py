@@ -29,6 +29,8 @@ resolving_async: contextvars.ContextVar[bool] = contextvars.ContextVar(
 def default_qs_hook(qs: models.QuerySet[_M]) -> models.QuerySet[_M]:
     # This is what QuerySet does internally to fetch results.
     # After this, iterating over the queryset should be async safe
+    if not isinstance(qs, models.QuerySet):
+        return qs
     if qs._result_cache is None:  # type: ignore
         qs._fetch_all()  # type: ignore
     return qs

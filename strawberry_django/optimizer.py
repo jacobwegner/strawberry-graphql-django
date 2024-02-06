@@ -671,7 +671,9 @@ def optimize(
 
     # Avoid optimizing twice and also modify an already resolved queryset
     if (
-        getattr(qs, "_gql_optimized", False) or qs._result_cache is not None  # type: ignore
+        getattr(qs, "_gql_optimized", False) or
+        not isinstance(qs, QuerySet) or
+        qs._result_cache is not None  # type: ignore
     ):
         return qs
 
