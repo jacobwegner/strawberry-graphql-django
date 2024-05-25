@@ -27,6 +27,7 @@ class Vegetable(NameDescriptionMixin):
 
 
 class Fruit(models.Model):
+    id: Optional[int]
     name = models.CharField(max_length=20)
     color_id: Optional[int]
     color = models.ForeignKey(
@@ -60,12 +61,22 @@ class Fruit(models.Model):
         return len(self.name)
 
 
+class TomatoWithRequiredPicture(models.Model):
+    name = models.CharField(max_length=20)
+    picture = models.ImageField(
+        null=False,
+        blank=False,
+        upload_to=".tmp_upload",
+    )
+
+
 class Color(models.Model):
     fruits: "RelatedManager[Fruit]"
     name = models.CharField(max_length=20)
 
 
 class FruitType(models.Model):
+    id: Optional[int]
     name = models.CharField(max_length=20, validators=[validate_fruit_type])
 
 

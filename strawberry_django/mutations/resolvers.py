@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -173,6 +174,9 @@ def parse_input(info: Info, data: Any, *, key_attr: str | None = "pk"):
             ),
         )
 
+    if isinstance(data, Enum):
+        return data.value
+
     if dataclasses.is_dataclass(data):
         return {
             f.name: parse_input(info, getattr(data, f.name), key_attr=key_attr)
@@ -251,10 +255,17 @@ def prepare_create_update(
             )
             if value is None and not value_data:
                 value = None  # noqa: PLW2901
+
+            # If foreign object is not found, then create it
             elif value is None:
                 value = field.related_model._default_manager.create(  # noqa: PLW2901
                     **value_data,
                 )
+
+            # If foreign object does not need updating, then skip it
+            elif isinstance(value_data, dict) and not value_data:
+                pass
+
             else:
                 update(
                     info, value, value_data, full_clean=full_clean, key_attr=key_attr
@@ -338,6 +349,11 @@ def create(
         full_clean=full_clean,
         key_attr=key_attr,
     )
+    # Don't forget to add the files to the dummy_instance
+    # without saving to ensure it will also trigger
+    # in the full_clean method
+    for file_field, value in files:
+        file_field.save_form_data(dummy_instance, value)
 
     # Creating the instance directly via create() without full-clean will
     # raise ugly error messages. To generate user-friendly ones, we want
@@ -436,10 +452,10 @@ def update(
 
     instance.save()
 
-    for field, value in m2m:
-        update_m2m(info, instance, field, value, key_attr, full_clean)
-
-    instance.refresh_from_db()
+    if m2m:
+        for field, value in m2m:
+            update_m2m(info, instance, field, value, key_attr, full_clean)
+        instance.refresh_from_db()
 
     return instance
 
@@ -476,7 +492,6 @@ def delete(info: Info, instance: _M | Iterable[_M], *, data=None) -> _M | list[_
         many = False
         instances = [instance]
 
-    assert len({obj.__class__ for obj in instances}) == 1
     for instance in instances:
         pk = instance.pk
         instance.delete()
